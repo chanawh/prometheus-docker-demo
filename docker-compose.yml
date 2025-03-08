@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus # Create persistent storage
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.listen-address=0.0.0.0:9090'
+    entrypoint: ["/bin/prometheus"]  # Correct entrypoint without $@
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    ports:
+      - "9100:9100"
+    command:
+      - '--no-collector.ipvs'
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+volumes:
+  prometheus-data: # Define named volume for Prometheus data
+    driver: local
+
+networks:
+  monitoring:
+    driver: bridge
