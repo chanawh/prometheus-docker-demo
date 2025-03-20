@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090  # Prometheus container URL
+    isDefault: true  # Make Prometheus the default data source
+    editable: true  # Allow users to modify this data source
+    jsonData:
+      timeInterval: "15s"  # Set the time interval to 15s for quick queries

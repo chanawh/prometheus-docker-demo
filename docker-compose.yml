@@ -4,33 +4,55 @@ services:
   prometheus:
     image: prom/prometheus:v2.45.0
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus # Create persistent storage
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Mount custom Prometheus config
+      - prometheus-data:/prometheus  # Persistent storage for Prometheus data
     ports:
-      - "9090:9090"
+      - "9090:9090"  # Expose Prometheus web UI
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.listen-address=0.0.0.0:9090'
-    entrypoint: ["/bin/prometheus"]  # Correct entrypoint without $@
-    restart: unless-stopped
+      - '--web.listen-address=0.0.0.0:9090'  # Listen on all interfaces
+    entrypoint: ["/bin/prometheus"]  # Ensure Prometheus starts correctly
+    restart: unless-stopped  # Restart on failure unless stopped manually
     networks:
-      - monitoring
+      - monitoring  # Use a custom monitoring network for internal communication
+    environment:
+      - PROMETHEUS_WEB_UI=true  # Optional: if you want to control additional flags via environment variables
 
   node-exporter:
     image: prom/node-exporter:v1.7.0
     ports:
-      - "9100:9100"
+      - "9100:9100"  # Expose Node Exporter metrics
     command:
-      - '--no-collector.ipvs'
-    restart: unless-stopped
+      - '--no-collector.ipvs'  # Disable ipvs collector (you can enable specific collectors if needed)
+    restart: unless-stopped  # Restart on failure unless stopped manually
     networks:
-      - monitoring
+      - monitoring  # Node Exporter on the same network for Prometheus to scrape metrics
+    environment:
+      - NODE_EXPORTER_COLLECTOR="cpu,disk,filesystem"  # Optional: Enable specific collectors
+
+  grafana:
+    image: grafana/grafana:9.5.0  # Use the official Grafana image
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin  # Set the default admin password for Grafana
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel  # Install any plugins if needed
+    ports:
+      - "3000:3000"  # Expose Grafana web UI
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning  # Provision datasources and dashboards
+      - grafana-data:/var/lib/grafana  # Persistent storage for Grafana data (dashboards, configurations)
+    restart: unless-stopped  # Restart on failure unless stopped manually
+    networks:
+      - monitoring  # Use the same network for communication with Prometheus
+    depends_on:
+      - prometheus  # Ensure Prometheus is up before Grafana starts
 
 volumes:
-  prometheus-data: # Define named volume for Prometheus data
+  prometheus-data:  # Named volume to persist Prometheus data
+    driver: local
+  grafana-data:  # Named volume to persist Grafana data
     driver: local
 
 networks:
-  monitoring:
+  monitoring:  # Custom network for services to communicate securely
     driver: bridge
