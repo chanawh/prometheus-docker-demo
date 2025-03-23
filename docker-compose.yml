@@ -3,56 +3,90 @@ version: '3.8'
 services:
   prometheus:
     image: prom/prometheus:v2.45.0
+    container_name: prometheus
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Mount custom Prometheus config
-      - prometheus-data:/prometheus  # Persistent storage for Prometheus data
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
     ports:
-      - "9090:9090"  # Expose Prometheus web UI
+      - "9090:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.listen-address=0.0.0.0:9090'  # Listen on all interfaces
-    entrypoint: ["/bin/prometheus"]  # Ensure Prometheus starts correctly
-    restart: unless-stopped  # Restart on failure unless stopped manually
+      - '--web.listen-address=0.0.0.0:9090'
+    entrypoint: ["/bin/prometheus"]
+    restart: unless-stopped
     networks:
-      - monitoring  # Use a custom monitoring network for internal communication
+      - monitoring
     environment:
-      - PROMETHEUS_WEB_UI=true  # Optional: if you want to control additional flags via environment variables
+      - PROMETHEUS_WEB_UI=true
 
   node-exporter:
     image: prom/node-exporter:v1.7.0
+    container_name: node-exporter
     ports:
-      - "9100:9100"  # Expose Node Exporter metrics
+      - "9100:9100"
     command:
-      - '--no-collector.ipvs'  # Disable ipvs collector (you can enable specific collectors if needed)
-    restart: unless-stopped  # Restart on failure unless stopped manually
+      - '--no-collector.ipvs'
+    restart: unless-stopped
     networks:
-      - monitoring  # Node Exporter on the same network for Prometheus to scrape metrics
+      - monitoring
     environment:
-      - NODE_EXPORTER_COLLECTOR="cpu,disk,filesystem"  # Optional: Enable specific collectors
+      - NODE_EXPORTER_COLLECTOR="cpu,disk,filesystem"
 
   grafana:
-    image: grafana/grafana:9.5.0  # Use the official Grafana image
+    image: grafana/grafana:9.5.0
+    container_name: grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # Set the default admin password for Grafana
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel  # Install any plugins if needed
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
     ports:
-      - "3000:3000"  # Expose Grafana web UI
+      - "3000:3000"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning  # Provision datasources and dashboards
-      - grafana-data:/var/lib/grafana  # Persistent storage for Grafana data (dashboards, configurations)
-    restart: unless-stopped  # Restart on failure unless stopped manually
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
     networks:
-      - monitoring  # Use the same network for communication with Prometheus
+      - monitoring
     depends_on:
-      - prometheus  # Ensure Prometheus is up before Grafana starts
+      - prometheus
+
+  cadvisor:
+    build:
+      context: ./cadvisor
+    container_name: cadvisor
+    ports:
+      - "8081:8080"  # cAdvisor web UI
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  linux-container:
+    build:
+      context: ./linux-container
+    container_name: linux-container
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] # Adjust endpoint if necessary
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  prometheus-data:  # Named volume to persist Prometheus data
+  prometheus-data:
     driver: local
-  grafana-data:  # Named volume to persist Grafana data
+  grafana-data:
     driver: local
 
 networks:
-  monitoring:  # Custom network for services to communicate securely
+  monitoring:
     driver: bridge

@@ -20,14 +20,20 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']  # Change to your node-exporter host if necessary
 
-  # Example: Add more scrape configurations for other exporters like blackbox, MySQL, etc.
-  # Example for a MySQL Exporter
+  # Scrape the linux-container
+  - job_name: 'linux-container'
+    static_configs:
+      - targets: ['linux-container:8080']  # Ensure the linux-container exposes a /metrics endpoint
+
+  # Scrape cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']  # Scrape cAdvisor metrics from the cAdvisor container (port 8080)
+
+  # Example for other services like blackbox or MySQL Exporter
   # - job_name: 'mysql'
   #   static_configs:
   #     - targets: ['mysql-exporter:9104']
 
-  # Example: Scrape a custom service, e.g., HTTP API
+  # Scrape a custom service, e.g., HTTP API
   # - job_name: 'my-service'
-  #   metrics_path: '/metrics'
-  #   static_configs:
-  #     - targets: ['my-service:8080']
